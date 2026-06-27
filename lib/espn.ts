@@ -46,32 +46,25 @@ async function fetchWithCache(key: string, url: string): Promise<any> {
   }
 
   try {
+    // Race the ESPN fetch against a 3-second timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(url, {
       headers: { 'User-Agent': 'FIFA26-Tracker/1.0' },
       cache: 'no-store',
+      signal: controller.signal,
     });
-    if (!res.ok) {
-      // ESPN API returned error — use fallback immediately
-      const fallback = getFallback(key);
-      if (fallback) {
-        cache[key] = { data: fallback, timestamp: now };
-        return fallback;
-      }
-      throw new Error(`HTTP ${res.status}`);
-    }
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    // Validate data has content
+    // Validate data has content (ESPN returns {code: 404} when endpoint is gone)
     if (!data || (typeof data === 'object' && 'code' in data && (data as any).code === 404)) {
-      const fallback = getFallback(key);
-      if (fallback) {
-        cache[key] = { data: fallback, timestamp: now };
-        return fallback;
-      }
+      throw new Error('Empty response');
     }
     cache[key] = { data, timestamp: now };
     return data;
   } catch {
-    // Fallback to bundled JSON
+    // ESPN failed or timed out — use fallback immediately
     const fallback = getFallback(key);
     if (fallback) {
       cache[key] = { data: fallback, timestamp: now };
