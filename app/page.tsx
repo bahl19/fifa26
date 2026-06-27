@@ -22,8 +22,20 @@ interface Ranking { rank:number; team:string; points:number; trend:string; }
    ═══════════════════════════════════════════════════════════════ */
 
 async function fetchJSON<T>(url:string):Promise<T|null> {
-  try { const r = await fetch(url, { next: { revalidate: 300 } }); if(!r.ok) return null; return await r.json(); }
-  catch { return null; }
+  // Try up to 3 times with increasing delay (handles Render cold start)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+      clearTimeout(timeout);
+      if (!r.ok) return null;
+      return await r.json();
+    } catch {
+      if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+    }
+  }
+  return null;
 }
 
 function useLiveData() {
@@ -59,7 +71,21 @@ function useLiveData() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); const id = setInterval(load, 60000); return () => clearInterval(id); }, [load]);
+  useEffect(() => {
+    load();
+    // Refresh every 60 seconds
+    const id = setInterval(load, 60000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  // Auto-retry on error: if error, retry after 5 seconds (up to 5 times)
+  const [retryCount, setRetryCount] = useState(0);
+  useEffect(() => {
+    if (error && retryCount < 5) {
+      const t = setTimeout(() => { setRetryCount(c => c + 1); load(); }, 5000);
+      return () => clearTimeout(t);
+    }
+  }, [error, retryCount, load]);
 
   return { standings, schedule, scorers, rankings, liveMatches, upcomingMatches, loading, error, lastUpdated, reload: load };
 }
@@ -156,12 +182,20 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-[#0a0e17] flex items-center justify-center p-6">
       <div className="text-center space-y-4 max-w-md">
-        <div className="text-4xl">⚠️</div>
-        <h2 className="text-xl font-bold text-zinc-200">Connection Error</h2>
-        <p className="text-zinc-400 text-sm">Could not reach the data server. The free-tier backend may be waking up — try again in 30 seconds.</p>
-        <button onClick={onRetry} className="bg-amber-400 text-zinc-900 font-bold px-6 py-2.5 rounded-xl hover:bg-amber-300 transition-all">
-          Retry
-        </button>
+        <div className="text-4xl">⏳</div>
+        <h2 className="text-xl font-bold text-zinc-200">Waking up the server...</h2>
+        <p className="text-zinc-400 text-sm leading-relaxed">
+          The free-tier backend is spinning up. First load takes ~30 seconds.
+          <br />I&apos;ll keep retrying automatically.
+        </p>
+        <div className="flex flex-col gap-2 items-center">
+          <button onClick={onRetry} className="bg-amber-400 text-zinc-900 font-bold px-6 py-2.5 rounded-xl hover:bg-amber-300 transition-all">
+            Retry Now
+          </button>
+          <button onClick={onRetry} className="text-zinc-400 text-xs hover:text-zinc-200 transition-all underline">
+            Or click here
+          </button>
+        </div>
       </div>
     </div>
   );
