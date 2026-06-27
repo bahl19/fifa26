@@ -36,14 +36,33 @@ async function fetchWithCache(key: string, url: string): Promise<any> {
       headers: { 'User-Agent': 'FIFA26-Tracker/1.0' },
       cache: 'no-store',
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      // ESPN API returned error — use fallback immediately
+      const fallback = getFallback(key);
+      if (fallback) {
+        cache[key] = { data: fallback, timestamp: now };
+        return fallback;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
     const data = await res.json();
+    // Validate data has content
+    if (!data || (typeof data === 'object' && 'code' in data && (data as any).code === 404)) {
+      const fallback = getFallback(key);
+      if (fallback) {
+        cache[key] = { data: fallback, timestamp: now };
+        return fallback;
+      }
+    }
     cache[key] = { data, timestamp: now };
     return data;
   } catch {
     // Fallback to bundled JSON
     const fallback = getFallback(key);
-    if (fallback) return fallback;
+    if (fallback) {
+      cache[key] = { data: fallback, timestamp: now };
+      return fallback;
+    }
     // In-memory stale cache is better than nothing
     if (cache[key]) return cache[key].data;
     return null;
@@ -56,10 +75,15 @@ export async function getStandings() {
   if (!raw) return null;
 
   try {
+    // If raw is already an array (our pre-formatted fallback), return directly
+    if (Array.isArray(raw)) return raw;
+
+    // Parse ESPN API format
     const groups: any[] = [];
     const children = raw.children || [raw];
     for (const child of children) {
       const standingsEntry = child.standings?.entries || [];
+      if (standingsEntry.length === 0) continue;
       const groupName = child.name || 'Group';
       const table = standingsEntry.map((team: any) => ({
         name: team.team?.displayName || team.team?.name || 'TBD',
@@ -76,7 +100,7 @@ export async function getStandings() {
       }));
       groups.push({ name: groupName, teams: table });
     }
-    return groups;
+    return groups.length > 0 ? groups : getFallback('standings');
   } catch {
     return getFallback('standings');
   }
@@ -88,6 +112,9 @@ export async function getSchedule() {
   if (!raw) return null;
 
   try {
+    // If raw is already an array (our pre-formatted fallback), return directly
+    if (Array.isArray(raw)) return raw;
+
     const events: any[] = raw.events || [];
     const matches = events.map((event: any) => {
       const competition = event.competitions?.[0];
@@ -126,6 +153,9 @@ export async function getScorers() {
   if (!raw) return null;
 
   try {
+    // If raw is already an array (our pre-formatted fallback), return directly
+    if (Array.isArray(raw)) return raw;
+
     const athletes = raw.athletes || [];
     const scorers = athletes
       .filter((a: any) => a.stats?.goals !== undefined)
