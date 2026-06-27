@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,9 +9,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const API = 'https://fifa2026-tracker.onrender.com';
 
-/* ═══════════════════════════════════════════════════════════════
-   TYPES
-   ═══════════════════════════════════════════════════════════════ */
+// Prevent Vercel from caching SSR pages (always fetch fresh)
+export const dynamic = 'force-dynamic';
 
 interface Standing { pos:number; team:string; pld:number; w:number; d:number; l:number; gf:number; ga:number; gd:string; pts:number; }
 interface Match { match:string; date:string; home:string; away:string; home_score:number|null; away_score:number|null; status:string; venue:string; group:string; round:string; time_utc?:string; time_ist?:string; time_et?:string; time_ct?:string; time_pt?:string; }
@@ -27,7 +27,7 @@ async function fetchJSON<T>(url:string):Promise<T|null> {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
-      const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+      const r = await fetch(url + (url.includes('?') ? '&' : '?') + '_=' + Date.now(), { signal: controller.signal, cache: 'no-store' });
       clearTimeout(timeout);
       if (!r.ok) return null;
       return await r.json();
