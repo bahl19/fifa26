@@ -586,7 +586,19 @@ function ChatTab({ standings, liveMatches, upcomingMatches, scorers, rankings }:
   const send = () => {
     const t = input.trim(); if (!t) return;
     setMsgs(p => [...p, { role: 'user', text: t }]); setInput(''); setTyping(true);
-    setTimeout(() => { setMsgs(p => [...p, { role: 'bot', text: respond(t) }]); setTyping(false); }, 400 + Math.random() * 400);
+    // Call Render backend chat API
+    fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: t })
+    })
+      .then(r => r.json())
+      .then(d => { setMsgs(p => [...p, { role: 'bot', text: d.response || 'Sorry, I could not process that.' }]); })
+      .catch(() => {
+        // Fallback to local response
+        setMsgs(p => [...p, { role: 'bot', text: respond(t) }]);
+      })
+      .finally(() => setTyping(false));
   };
 
   return (
