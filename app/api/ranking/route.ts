@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getRanking } from '@/lib/espn';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
   const ranking = await getRanking();

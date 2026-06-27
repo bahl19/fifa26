@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { handleChat } from '@/lib/espn';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
