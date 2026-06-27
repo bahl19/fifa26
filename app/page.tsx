@@ -72,6 +72,8 @@ function useLiveData() {
   }, []);
 
   useEffect(() => {
+    // Only fetch on client side (not during SSR)
+    if (typeof window === 'undefined') return;
     load();
     // Refresh every 60 seconds
     const id = setInterval(load, 60000);
@@ -81,6 +83,7 @@ function useLiveData() {
   // Auto-retry on error: if error, retry after 5 seconds (up to 5 times)
   const [retryCount, setRetryCount] = useState(0);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (error && retryCount < 5) {
       const t = setTimeout(() => { setRetryCount(c => c + 1); load(); }, 5000);
       return () => clearTimeout(t);
