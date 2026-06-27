@@ -1,9 +1,8 @@
 // ESPN API scraper — runs server-side on Vercel
 // Fetches live FIFA 2026 World Cup data with in-memory cache + JSON fallback
 
-import fallbackStandings from './fallback/standings.json';
-import fallbackSchedule from './fallback/schedule.json';
-import fallbackScorers from './fallback/scorers.json';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const ESPN_STANDINGS = 'https://site.api.espn.com/apis/v3/sports/soccer/fifa.world/standings';
 const ESPN_SCHEDULE = 'https://site.api.espn.com/apis/v3/sports/soccer/fifa.world/schedule?week=1';
@@ -18,11 +17,26 @@ interface CacheEntry {
 const cache: Record<string, CacheEntry> = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Load fallback data lazily (only when needed)
+let fallbackData: Record<string, any> | null = null;
+
+function loadFallback(): Record<string, any> {
+  if (fallbackData) return fallbackData;
+  try {
+    const dir = path.join(process.cwd(), 'lib', 'fallback');
+    fallbackData = {
+      standings: JSON.parse(fs.readFileSync(path.join(dir, 'standings.json'), 'utf-8')),
+      schedule: JSON.parse(fs.readFileSync(path.join(dir, 'schedule.json'), 'utf-8')),
+      scorers: JSON.parse(fs.readFileSync(path.join(dir, 'scorers.json'), 'utf-8')),
+    };
+  } catch {
+    fallbackData = {};
+  }
+  return fallbackData;
+}
+
 function getFallback(key: string): any | null {
-  if (key === 'standings') return fallbackStandings;
-  if (key === 'schedule') return fallbackSchedule;
-  if (key === 'scorers') return fallbackScorers;
-  return null;
+  return loadFallback()[key] || null;
 }
 
 async function fetchWithCache(key: string, url: string): Promise<any> {
