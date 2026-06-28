@@ -377,7 +377,7 @@ function HomeTab({ liveMatches, upcomingMatches, standings }: { liveMatches: Mat
             if (!leader) return null;
             return (
               <Card key={g} className="p-3">
-                <div className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">Group {g}</div>
+                <div className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">{g}</div>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-xl">{flag(leader.team)}</span>
                   <div className="min-w-0">
