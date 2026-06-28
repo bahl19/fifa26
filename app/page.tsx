@@ -60,12 +60,29 @@ function useLiveData() {
     if (!stData && !scData) { setError(true); setLoading(false); return; }
 
     if (stData) {
-      setStandings(stData.standings || stData.groups || {});
+      // Handle both formats: array of groups [{name, teams}] or Record {Group A: teams}
+      let parsedStandings: Record<string, Standing[]> = {};
+      if (Array.isArray(stData)) {
+        for (const group of stData) {
+          if (group.name && group.teams) parsedStandings[group.name] = group.teams;
+        }
+      } else if (stData.standings) {
+        parsedStandings = typeof stData.standings === 'object' ? stData.standings : {};
+      } else if (stData.groups) {
+        parsedStandings = stData.groups;
+      } else {
+        parsedStandings = stData as Record<string, Standing[]>;
+      }
+      setStandings(parsedStandings);
       setLiveMatches(stData.live_matches || []);
       setUpcomingMatches(stData.upcoming_matches || []);
       setLastUpdated(stData.last_updated || '');
     }
-    if (scData) setSchedule(scData);
+    if (scData) {
+      // Handle both formats: plain array [{home,away,...}] or Record
+      const arr = Array.isArray(scData) ? scData : (scData.matches || scData.schedule || Object.values(scData).flat());
+      setSchedule(arr);
+    }
     if (scorersData) setScorers(scorersData);
     if (rkData) setRankings(rkData);
     setLoading(false);

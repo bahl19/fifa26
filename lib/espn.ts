@@ -131,7 +131,11 @@ export async function getSchedule() {
       const away = awayComp?.team?.displayName || awayComp?.team?.name || 'TBD';
       const homeScore = homeComp?.score?.value ?? null;
       const awayScore = awayComp?.score?.value ?? null;
-      const status = competition?.status?.type?.name || 'SCHEDULED';
+      const rawStatus = competition?.status?.type?.name || 'SCHEDULED';
+      // ESPN sometimes returns date strings as status for scheduled games
+      const status = (rawStatus === 'SCHEDULED' || rawStatus === 'STATUS_SCHEDULED' || rawStatus === 'SCHEDULED_DATE')
+        ? 'SCHEDULED'
+        : (rawStatus === 'FT' || rawStatus === 'FINAL' ? 'FT' : rawStatus);
       const date = event.date || '';
       const venue = competition?.venue?.fullName || '';
       
