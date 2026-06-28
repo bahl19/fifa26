@@ -40,7 +40,7 @@ async function fetchJSON<T>(url:string):Promise<T|null> {
 
 function useLiveData() {
   const [standings, setStandings] = useState<Record<string,Standing[]>>({});
-  const [schedule, setSchedule] = useState<Record<string,Match[]>>({});
+  const [schedule, setSchedule] = useState<Match[]>([]);
   const [scorers, setScorers] = useState<Scorer[]>([]);
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
@@ -52,7 +52,7 @@ function useLiveData() {
   const load = useCallback(async () => {
     const [stData, scData, scorersData, rkData] = await Promise.all([
       fetchJSON<any>(API + '/api/standings'),
-      fetchJSON<Record<string,Match[]>>(API + '/api/schedule'),
+      fetchJSON<Match[]>(API + '/api/schedule'),
       fetchJSON<Scorer[]>(API + '/api/scorers'),
       fetchJSON<Ranking[]>(API + '/api/ranking'),
     ]);
@@ -78,11 +78,7 @@ function useLiveData() {
       setUpcomingMatches(stData.upcoming_matches || []);
       setLastUpdated(stData.last_updated || '');
     }
-    if (scData) {
-      // Handle both formats: plain array [{home,away,...}] or Record
-      const arr = Array.isArray(scData) ? scData : (scData.matches || scData.schedule || Object.values(scData).flat());
-      setSchedule(arr);
-    }
+    if (scData) setSchedule(scData);
     if (scorersData) setScorers(scorersData);
     if (rkData) setRankings(rkData);
     setLoading(false);
@@ -493,10 +489,10 @@ function StandingsTab({ standings, liveMatches, upcomingMatches }: { standings: 
    SCHEDULE TAB
    ═══════════════════════════════════════════════════════════════ */
 
-function ScheduleTab({ schedule }: { schedule: Record<string, Match[]> }) {
+function ScheduleTab({ schedule }: { schedule: Match[] }) {
   const [sel, setSel] = useState('group_stage');
-  const rounds = [...new Set(Object.keys(schedule))];
-  const filtered = (schedule[sel] || []);
+  const rounds = [...new Set(schedule.map(m => m.round || 'group_stage'))];
+  const filtered = schedule.filter(m => (m.round || 'group_stage') === sel);
   const byDate: Record<string, Match[]> = {};
   filtered.forEach(m => { (byDate[m.date] = byDate[m.date] || []).push(m); });
 
@@ -506,7 +502,7 @@ function ScheduleTab({ schedule }: { schedule: Record<string, Match[]> }) {
         {rounds.map(r => (
           <button key={r} onClick={() => setSel(r)}
             className={'px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ' + (sel === r ? 'bg-amber-400 text-zinc-900 shadow-lg shadow-amber-400/20' : 'bg-[#1a1f2e] text-zinc-400 border border-[#2a3146]')}>
-            {roundLabel(r)} ({schedule[r]?.length || 0})
+            {roundLabel(r)} ({schedule.filter(m => (m.round || 'group_stage') === r).length})
           </button>
         ))}
       </div>
