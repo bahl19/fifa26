@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
    CONFIG
    ═══════════════════════════════════════════════════════════════ */
 
-const API = ''; // same origin — calls our own /api routes
+const API = 'https://fifa2026-tracker.onrender.com'; // calls Render backend
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES
